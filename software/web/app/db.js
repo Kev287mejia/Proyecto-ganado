@@ -4,18 +4,28 @@ var path = require('path');
 
 var DB_FILE = path.join(__dirname, '../data/db.json');
 
+var inMemoryDb = null;
+
 function load() {
+    if (inMemoryDb) return inMemoryDb;
     try {
         var data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
         if (!data.health) data.health = [];
-        return data;
+        inMemoryDb = data;
+        return inMemoryDb;
     } catch(e) {
-        return { fencepoints: [], animals: [], tracking: [], health: [] };
+        inMemoryDb = { fencepoints: [], animals: [], tracking: [], health: [] };
+        return inMemoryDb;
     }
 }
 
 function save(data) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    inMemoryDb = data; // Mantener estado en memoria para Vercel
+    try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    } catch (e) {
+        // Ignorar silenciosamente si el filesystem es de solo lectura (ROFS) en Vercel
+    }
 }
 
 function generateId() {
