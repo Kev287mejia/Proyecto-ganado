@@ -1,140 +1,106 @@
-// Creates the addCtrl Module and Controller. Note that it depends on the 'geolocation' module and service.
+// fenceCtrl.js — Controlador para Posicionamiento de Cercas
 var fenceCtrl = angular.module('fenceCtrl', ['geolocation']);
-fenceCtrl.controller('fenceCtrl', function($scope, $http, $rootScope, geolocation, gservice){
-    
-    //Initialise variables
-    $scope.formData = {};
-    // Set initial coordinates to the center of the US
-    $scope.formData.paddock = 0;
-    $scope.formData.point = 10;
-    $scope.formData.version = 0;
-    $scope.formData.latitude = -37.911751;
-    $scope.formData.longitude = 145.138537;
-    
-    
-    // Get User's actual coordinates based on HTML5 at window load
-    geolocation.getLocation().then(function(data){
-        // Set the latitude and longitude equal to the HTML5 coordinates
-        coords = {lat:data.coords.latitude, long:data.coords.longitude};
+fenceCtrl.controller('fenceCtrl', function ($scope, $http, $rootScope, $timeout, geolocation, gservice) {
 
-        // Display coordinates in location textboxes rounded to three decimal points
-        $scope.formData.longitude = parseFloat(coords.long).toFixed(6);
-        $scope.formData.latitude = parseFloat(coords.lat).toFixed(6);
-        // Set the latitude and longitude equal to the HTML5 coordinates
+    // Coordenadas por defecto: zona ganadera de Matagalpa, Nicaragua
+    $scope.formData = {
+        paddock  : 0,
+        point    : 0,
+        version  : 0,
+        latitude : 12.9256,
+        longitude: -85.9175
+    };
+    $scope.fencePoints = [];
+
+    // -------------------------------------------------------
+    // Inicializar mapa después de que Angular renderice el partial
+    // -------------------------------------------------------
+    $timeout(function () {
+        gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
+    }, 150);
+
+    // Intentar usar geolocalización real
+    geolocation.getLocation().then(function (data) {
+        $scope.formData.latitude  = parseFloat(data.coords.latitude).toFixed(6);
+        $scope.formData.longitude = parseFloat(data.coords.longitude).toFixed(6);
         gservice.refresh(data.coords.latitude, data.coords.longitude, false);
-    });
-    
-    
-    // jQuery AJAX call for JSON
-    $.getJSON( '/fencepoints', function( data ) {
-        updateList(data);
-    });
-    
+    }).catch(function () { /* Sin permiso — usar por defecto */ });
 
-    
-    
-    
-    // Functions
-    // ----------------------------------------------------------------------------
-    
-    
-    function updateList(data){
-        var fencePoints = [];
-        $scope.fencePoints = data;
-        console.log($scope.fencePoints);
-        $scope.formData.point = $scope.fencePoints.length;
-        if($scope.fencePoints.length == 0) $scope.formData.version = 0;
-        else $scope.formData.version = $scope.fencePoints[0].version ;  //** Has console error if there is no entries in database
+    // Cargar puntos de cerca al arrancar
+    loadFencepoints();
+
+    // -------------------------------------------------------
+    // Funciones privadas
+    // -------------------------------------------------------
+    function loadFencepoints() {
+        $.getJSON('/fencepoints', function (data) {
+            $scope.$apply(function () {
+                $scope.fencePoints = data;
+                $scope.formData.point = data.length;
+                $scope.formData.version = data.length > 0 ? data[0].version : 0;
+            });
+        });
+    }
+
+    // -------------------------------------------------------
+    // API pública del scope
+    // -------------------------------------------------------
+
+    /** Recarga la lista y refresca el mapa */
+    $scope.updatelist = function () {
+        loadFencepoints();
         gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
     };
-    
-    $scope.updatelist = function() {
-        $.getJSON( '/fencepoints', function( data ) {
-            updateList(data);
+
+    /** Agregar nuevo punto de cerca (coordenadas tomadas del clic en el mapa) */
+    $scope.addPoint = function () {
+        var pointData = {
+            paddock : parseInt($scope.formData.paddock),
+            order   : parseInt($scope.formData.point),
+            version : parseInt($scope.formData.version),
+            location: [parseFloat($scope.formData.longitude), parseFloat($scope.formData.latitude)]
+        };
+        $http.post('/fencepoints/add', pointData)
+            .then(function (res) {
+                $scope.fencePoints = res.data;
+                $scope.formData.point = res.data.length;
+                gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
+            }, function () {
+                console.error('Error al agregar punto de cerca');
+            });
+    };
+
+    /** Eliminar punto de cerca por ID */
+    $scope.deletePoint = function (id2Delete) {
+        $http.post('/fencepoints/delete', { _id: id2Delete })
+            .then(function (res) {
+                $scope.fencePoints = res.data;
+                gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
+            }, function () {
+                console.error('Error al eliminar punto de cerca');
+            });
+    };
+
+    /** Incrementar versión y enviar a collares */
+    $scope.send2Devices = function () {
+        var newVersion = (parseInt($scope.formData.version) + 1) % 256;
+        $http.post('/fencepoints/update', {
+            paddock: parseInt($scope.formData.paddock),
+            version: newVersion
+        }).then(function (res) {
+            $scope.fencePoints = res.data;
+            $scope.formData.version = newVersion;
+            gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
+        }, function () {
+            console.error('Error al actualizar versión');
         });
     };
-        
-    // Get coordinates based on mouse click. When a click event is detected....
-    $rootScope.$on("clicked", function(){
 
-        // Run the gservice functions associated with identifying coordinates
-        $scope.$apply(function(){
-            $scope.formData.latitude = parseFloat(gservice.clickLat).toFixed(6);
+    // Escuchar clic en mapa → actualizar coordenadas del formulario
+    $rootScope.$on('clicked', function () {
+        $scope.$apply(function () {
+            $scope.formData.latitude  = parseFloat(gservice.clickLat).toFixed(6);
             $scope.formData.longitude = parseFloat(gservice.clickLong).toFixed(6);
         });
     });
-    
-    // Creates a new point based on the form fields
-    $scope.addPoint = function() {
-
-        // Grabs all of the text box fields
-        var pointData = {
-            paddock: $scope.formData.paddock,
-            order: $scope.formData.point,
-            version: $scope.formData.version,
-            location: [$scope.formData.longitude, $scope.formData.latitude]
-        };
-        console.log("Success grabbing variables")
-        
-
-        // Saves the user data to the db
-        $http.post('/fencepoints/add', pointData)
-            .success(function (data) {
-
-                // Once complete, clear the form (except location)
-                updateList(data);
-            
-                // Refresh the map with new data
-                //gservice.refresh($scope.formData.latitude, $scope.formData.longitude);
-                
-            })
-            .error(function (data) {
-                console.log('Error: ' + data);
-            });
-    };
-    
-    $scope.deletePoint = function(id2Delete) {
-        var jsondata= "{\x22_id\x22:\x22"+id2Delete+"\x22}";// ObjectId(
-        // Saves the user data to the db
-        $http.post('/fencepoints/delete', jsondata)
-            .success(function (data) {
-
-                // Once complete, clear the form (except location)
-                updateList(data);
-            
-                // Refresh the map with new data
-                //gservice.refresh($scope.formData.latitude, $scope.formData.longitude);
-                
-            })
-            .error(function (data) {
-                //console.log('Error: ' + data);
-                //updateList();
-            });
-          //updateList();
-    };
-    
-    $scope.send2Devices =function() {
-        var newversion = $scope.formData.version + 1;
-        if (newversion > 255) version = 0;
-        
-        var versiondata = { version: newversion,
-                            paddock: $scope.formData.paddock};
-        $http.post('/fencepoints/update', versiondata)
-            .success(function (data) {
-
-                // Once complete, clear the form (except location)
-                updateList(data);
-            
-                // Refresh the map with new data
-                //gservice.refresh($scope.formData.latitude, $scope.formData.longitude);
-                
-            })
-            .error(function (data) {
-                //console.log('Error: ' + data);
-                //updateList();
-            });
-        
-         
-    };
-   
 });

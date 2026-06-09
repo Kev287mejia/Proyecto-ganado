@@ -1,1 +1,149 @@
-<!-- Look into Tableau for this functionality -->
+<div class="dashboard-container" ng-controller="statisticsCtrl">
+    <!-- Encabezado de la Página -->
+    <div class="dashboard-header">
+        <h2 class="dashboard-title">Dashboard de Estadísticas</h2>
+        <p class="dashboard-subtitle">Análisis del comportamiento del ganado, alertas y áreas críticas de pastoreo</p>
+    </div>
+
+    <!-- Panel de Filtros -->
+    <div class="filter-bar">
+        <form class="form-inline-custom">
+            <div class="filter-item">
+                <label for="statAnimal">Animal:</label>
+                <select id="statAnimal" class="form-control-custom"
+                        data-ng-options="o.name for o in animals"
+                        data-ng-model="selectedAnimal"
+                        ng-change="updateStats()">
+                </select>
+            </div>
+            <div class="filter-item">
+                <label>Desde:</label>
+                <input type="datetime-local" class="form-control-custom" ng-model="formData.oldestDate" ng-change="updateStats()">
+            </div>
+            <div class="filter-item">
+                <label>Hasta:</label>
+                <input type="datetime-local" class="form-control-custom" ng-model="formData.newestDate" ng-change="updateStats()">
+            </div>
+            <button type="button" class="btn-custom btn-secondary" ng-click="resetFilters()">
+                Limpiar Filtros
+            </button>
+            <button type="button" class="btn-custom btn-primary" ng-click="updateStats()">
+                ↺ Actualizar
+            </button>
+        </form>
+    </div>
+
+    <!-- Fila de Tarjetas KPI -->
+    <div class="kpi-row">
+        <!-- KPI 1 -->
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-blue">
+                <img src="images/track.png" class="kpi-img" alt="Tracking">
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Ubicaciones Registradas</span>
+                <span class="kpi-value">{{kpis.totalLocations}}</span>
+            </div>
+        </div>
+
+        <!-- KPI 2 -->
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-yellow">
+                <span class="kpi-char">⚠</span>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Alertas Acústicas</span>
+                <span class="kpi-value text-warning">{{kpis.totalAlerts}}</span>
+            </div>
+        </div>
+
+        <!-- KPI 3 -->
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-red">
+                <span class="kpi-char">⚡</span>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Descargas de Contención</span>
+                <span class="kpi-value text-danger">{{kpis.totalShocks}}</span>
+            </div>
+        </div>
+
+        <!-- KPI 4 -->
+        <div class="kpi-card">
+            <div class="kpi-icon kpi-purple">
+                <img src="images/map.png" class="kpi-img" alt="Potrero">
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Potrero más Activo</span>
+                <span class="kpi-value">Potrero {{kpis.mostActivePaddock}}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Gráficos (Grid) -->
+    <div class="charts-grid">
+        <!-- Gráfico 1: Barras - Alertas y Shocks por Animal -->
+        <div class="chart-box">
+            <h3 class="chart-title">Incidentes de Contención por Animal</h3>
+            <div class="chart-wrapper">
+                <canvas id="incidentsByAnimalChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Dona - Distribución de Datos de Dispositivos -->
+        <div class="chart-box">
+            <h3 class="chart-title">Actividad por Potrero (Logs)</h3>
+            <div class="chart-wrapper">
+                <canvas id="paddockDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico 3: Línea de Evolución Temporal -->
+    <div class="chart-box-full">
+        <h3 class="chart-title">Histórico de Incidentes a lo Largo del Tiempo</h3>
+        <div class="chart-wrapper-full">
+            <canvas id="timelineChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabla de Eventos Críticos Recientes -->
+    <div class="recent-events-box">
+        <h3 class="chart-title">Últimos Incidentes Registrados (Alertas/Shocks)</h3>
+        <div class="table-responsive-custom">
+            <table class="table-dashboard">
+                <thead>
+                    <tr>
+                        <th>Animal</th>
+                        <th>Fecha y Hora</th>
+                        <th>Coordenadas (Lat, Lon)</th>
+                        <th>Alertas Acústicas</th>
+                        <th>Descargas (Shocks)</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="e in recentIncidents" ng-class="{'row-alert': e.alerts > 0, 'row-shock': e.shocks > 0}">
+                        <td class="font-bold">{{e.animalName}}</td>
+                        <td>{{e.sent_at | date:'dd/MM/yyyy HH:mm:ss'}}</td>
+                        <td>{{e.location[1].toFixed(5)}}, {{e.location[0].toFixed(5)}}</td>
+                        <td>
+                            <span class="badge" ng-class="e.alerts > 0 ? 'badge-warn' : 'badge-success'">
+                                {{e.alerts > 0 ? '⚠ ' + e.alerts + ' alerta(s)' : '✓ 0'}}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge" ng-class="e.shocks > 0 ? 'badge-danger' : 'badge-success'">
+                                {{e.shocks > 0 ? '⚡ ' + e.shocks + ' descarga(s)' : '✓ 0'}}
+                            </span>
+                        </td>
+                        <td class="font-bold text-danger">{{e.shocks > 0 ? 'DESCARGA' : (e.alerts > 0 ? 'ADVERTENCIA' : 'SEGURO')}}</td>
+                    </tr>
+                    <tr ng-if="recentIncidents.length === 0">
+                        <td colspan="6" class="text-center-placeholder">No se encontraron incidentes en el rango seleccionado.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,3 +1,68 @@
+<!-- overview.html — Vista General con mapa y tabla de últimas posiciones -->
 
-    <div id="map"></div>
+<!-- Mapa satélite (panel izquierdo) -->
+<div class="left-pane" style="height:100vh; min-height:500px;">
+    <div id="map" style="height:100%; width:100%; background-color:#1a1a2e;"></div>
+</div>
 
+<!-- Panel derecho con información -->
+<div class="right-pane" ng-controller="addCtrl">
+    <div class="right">
+        <div class="right-heading">
+            <h2 class="right-title">Vista General</h2>
+        </div>
+
+        <div class="right-body">
+
+            <!-- Filtros de consulta -->
+            <form>
+                <div class="form-group">
+                    <label for="animalSel">Animal:</label>
+                    <select id="animalSel" class="form-control"
+                            data-ng-options="o.name for o in animals"
+                            data-ng-model="selectedAnimal">
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Desde:</label>
+                    <input type="datetime-local" class="form-control"
+                           ng-model="formData.oldestDate">
+                </div>
+
+                <div class="form-group">
+                    <label>Hasta:</label>
+                    <input type="datetime-local" class="form-control"
+                           ng-model="formData.newestDate">
+                </div>
+
+                <button type="submit" class="btn btn-danger btn-block"
+                        ng-click="queryAnimals()">
+                    Consultar
+                </button>
+                <button type="button" class="btn btn-default btn-block"
+                        ng-click="refresh()">
+                    ↺ Actualizar
+                </button>
+            </form>
+
+            <!-- Indicador de última actualización -->
+            <p ng-if="lastUpdate" style="font-size:11px;color:#aaa;margin-top:6px;">
+                Última actualización: {{lastUpdate}}
+            </p>
+
+            <!-- Contador de registros -->
+            <p ng-if="trackingData.length > 0"
+               style="font-size:12px; color:#888; margin-top:4px;">
+                {{trackingData.length}} registro(s) encontrado(s)
+            </p>
+
+            <!-- Sin datos -->
+            <p ng-if="trackingData.length === 0"
+               style="color:#aaa;font-size:13px;margin-top:12px;text-align:center;">
+                Sin registros de tracking
+            </p>
+
+        </div>
+    </div>
+</div>

@@ -1,4 +1,138 @@
-<div>
-    <h2>Website Settings</h2>
+<div class="dashboard-container" ng-controller="settingsCtrl">
+    <!-- Encabezado de la Página -->
+    <div class="dashboard-header">
+        <h2 class="dashboard-title">Configuración del Sistema</h2>
+        <p class="dashboard-subtitle">Administra los parámetros globales de GeoGanado, simula transmisiones LoRa y gestiona bases de datos</p>
+    </div>
 
+    <!-- Layout de Dos Columnas -->
+    <div class="settings-grid">
+        
+        <!-- Panel Izquierdo: Simulador de Dispositivos LoRa -->
+        <div class="settings-card">
+            <div class="card-header-custom">
+                <span class="card-icon">📡</span>
+                <h3 class="card-title">Simulador de Collar GPS / LoRa</h3>
+            </div>
+            <div class="card-body-custom">
+                <p class="card-description">
+                    Simula la recepción de un paquete de telemetría GPS transmitido por un collar. El sistema verificará si el animal está dentro de su potrero y calculará alertas si se encuentra fuera de los límites.
+                </p>
+
+                <form class="settings-form">
+                    <div class="form-group-custom">
+                        <label for="simAnimal">Seleccionar Animal para Simular:</label>
+                        <select id="simAnimal" class="form-control-custom-full"
+                                data-ng-options="o.name for o in animals"
+                                data-ng-model="selectedAnimal">
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn-custom btn-primary btn-block-custom" 
+                            ng-click="runSimulation()" ng-disabled="isSimulating">
+                        {{isSimulating ? 'Transmitiendo telemetría...' : '⚡ Simular Envío de Coordenadas'}}
+                    </button>
+                </form>
+
+                <!-- Resultado de la Simulación -->
+                <div class="sim-result-box" ng-if="simResult">
+                    <h4 class="sim-result-title">Última Telemetría Recibida:</h4>
+                    <table class="table-sim-result">
+                        <tr>
+                            <td><b>Animal:</b></td>
+                            <td>{{simResult.animalName}} (ID: {{simResult.tracking.animalid}})</td>
+                        </tr>
+                        <tr>
+                            <td><b>Posición:</b></td>
+                            <td>{{simResult.tracking.location[1].toFixed(6)}}, {{simResult.tracking.location[0].toFixed(6)}}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Fecha:</b></td>
+                            <td>{{simResult.tracking.sent_at | date:'dd/MM/yyyy HH:mm:ss'}}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Alertas / Shocks:</b></td>
+                            <td>
+                                <span class="badge" ng-class="simResult.tracking.alerts > 0 ? 'badge-warn' : 'badge-success'">
+                                    ⚠ Alertas: {{simResult.tracking.alerts}}
+                                </span>
+                                <span class="badge" ng-class="simResult.tracking.shocks > 0 ? 'badge-danger' : 'badge-success'" style="margin-left: 5px;">
+                                    ⚡ Descargas: {{simResult.tracking.shocks}}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><b>Estado de Contención:</b></td>
+                            <td>
+                                <span class="status-indicator" ng-class="simResult.tracking.shocks > 0 ? 'status-shock' : (simResult.tracking.alerts > 0 ? 'status-warn' : 'status-safe')">
+                                    {{simResult.tracking.shocks > 0 ? 'FUERA DE LÍMITES - DESCARGA ENVIADA' : (simResult.tracking.alerts > 0 ? 'FUERA DE LÍMITES - EMITIENDO BEEP' : 'DENTRO DEL PERÍMETRO SEGURO')}}
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Mantenimiento y Estado de Servidor -->
+        <div class="settings-column-right">
+            
+            <!-- Tarjeta: Mantenimiento de Base de Datos -->
+            <div class="settings-card">
+                <div class="card-header-custom">
+                    <span class="card-icon">⚙</span>
+                    <h3 class="card-title">Mantenimiento de Base de Datos</h3>
+                </div>
+                <div class="card-body-custom">
+                    <p class="card-description">
+                        Restablece todos los datos semilla (puntos de cercas predeterminados, collares, animales de prueba y registros de tracking históricos de muestra).
+                    </p>
+                    
+                    <div class="warning-alert-box">
+                        <strong>¡Atención!</strong> Esta acción eliminará cualquier punto de cerca dibujado manualmente y volverá a cargar la configuración inicial de Rancho Sonora.
+                    </div>
+
+                    <button type="button" class="btn-custom btn-danger btn-block-custom" 
+                            ng-click="resetDB()" ng-disabled="isResetting">
+                        {{isResetting ? 'Restableciendo...' : '⚠ Restablecer Base de Datos a Semilla'}}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tarjeta: Estado del Servidor -->
+            <div class="settings-card">
+                <div class="card-header-custom">
+                    <span class="card-icon">ℹ</span>
+                    <h3 class="card-title">Información del Sistema</h3>
+                </div>
+                <div class="card-body-custom">
+                    <table class="table-sim-result">
+                        <tr>
+                            <td><b>Servidor Web:</b></td>
+                            <td>Node.js / Express</td>
+                        </tr>
+                        <tr>
+                            <td><b>Almacenamiento:</b></td>
+                            <td>Local JSON File (sin dependencias de MongoDB)</td>
+                        </tr>
+                        <tr>
+                            <td><b>Ubicación del Archivo:</b></td>
+                            <td><code>software/web/data/db.json</code></td>
+                        </tr>
+                        <tr>
+                            <td><b>Estado de Conexión:</b></td>
+                            <td><span class="status-indicator status-safe">Activo (Localhost)</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+
+    <!-- Notificaciones flotantes -->
+    <div class="toast-notification" ng-if="toast" ng-class="toast.type">
+        {{toast.message}}
+    </div>
 </div>

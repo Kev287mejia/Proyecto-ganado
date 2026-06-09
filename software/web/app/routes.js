@@ -1,154 +1,114 @@
-// Dependencies
-var mongoose        = require('mongoose');
-var Fence            = require('./model.js');
+var db = require('./db.js');
 
-// Opens App Routes
 module.exports = function(app) {
 
-    // GET Routes
-    // --------------------------------------------------------
-    // Retrieve records for all users in the db
-    app.get('/fencepoints', function(req, res){
-
-        // Uses Mongoose schema to run the search (empty conditions)
-        var query = Fence.find({});
-        query.setOptions({sort: "order"});
-        query.exec(function(err, fencepoints){
-            if(err)
-                res.send(err);
-
-            // If no errors are found, it responds with a JSON of all users
-            res.json(fencepoints);
-        });
+    // GET - Todos los puntos de cerca
+    app.get('/fencepoints', function(req, res) {
+        try { res.json(db.getFencepoints()); }
+        catch(e) { res.json([]); }
     });
 
-    // POST Routes
-    // --------------------------------------------------------
-    // Provides method for saving new users in the db
-    app.post('/fencepoints/add', function(req, res){
-        console.log("Adding a new Point")
-        // Creates a new Fence point based on the Mongoose schema and the post body.
-        var newpoint = new Fence(req.body);
-        console.log(req.body)
-        // New Fence is saved in the db.
-        newpoint.save(function(err){
-            if(err)
-                res.send(err);
-
-            // Uses Mongoose schema to run the search (empty conditions)
-            var query = Fence.find({});
-            query.setOptions({sort: "order"});
-            query.exec(function(err, fencepoints){
-            if(err)
-                res.send(err);
-
-            // If no errors are found, it responds with a JSON of all users
-            res.json(fencepoints);
-            });
-        });
+    // POST - Agregar un punto de cerca
+    app.post('/fencepoints/add', function(req, res) {
+        console.log("Agregando nuevo punto:", req.body);
+        try { res.json(db.addFencepoint(req.body)); }
+        catch(e) { res.status(500).json({ error: e.message }); }
     });
-    
-    // Provides method for saving new users in the db
-    app.post('/fencepoints/delete', function(req, res){
-        console.log("Removing a new Point")
-        console.log(req.body)
-        
-        var query = Fence;
-        query.findByIdAndRemove(req.body, function(err,data){if(!err) console.log(data);});
-        
-        // Uses Mongoose schema to run the search (empty conditions)
-        var query = Fence.find({});
-        query.setOptions({sort: "order"});
-        query.exec(function(err, fencepoints){
-        if(err)
-            res.send(err);
 
-        // If no errors are found, it responds with a JSON of all users
-        res.json(fencepoints);
-        });
+    // POST - Eliminar punto de cerca
+    app.post('/fencepoints/delete', function(req, res) {
+        console.log("Eliminando punto:", req.body);
+        try { res.json(db.deleteFencepoint(req.body._id)); }
+        catch(e) { res.status(500).json({ error: e.message }); }
     });
-    
-    app.post('/fencepoints/update', function(req, res){
+
+    // POST - Actualizar versión de cerca
+    app.post('/fencepoints/update', function(req, res) {
         var data = req.body;
-        var query = Fence;
-        query.update({paddock: data.paddock}, {
-            version: data.version, 
-            }, { multi: true }, 
-            function(err, numberAffected, rawResponse) {
-            //handle it
-        });
-
-        // Uses Mongoose schema to run the search (empty conditions)
-        var query = Fence.find({});
-        query.setOptions({sort: "order"});
-        query.exec(function(err, fencepoints){
-        if(err)
-            res.send(err);
-
-        // If no errors are found, it responds with a JSON of all users
-        res.json(fencepoints);
-        });
+        try { res.json(db.updateFencepointVersion(data.paddock, data.version)); }
+        catch(e) { res.status(500).json({ error: e.message }); }
     });
-//    // Retrieves JSON records for all users who meet a certain set of query conditions
-//    app.post('/query/', function(req, res){
-//
-//        // Grab all of the query parameters from the body.
-//        var lat             = req.body.latitude;
-//        var long            = req.body.longitude;
-//        var distance        = req.body.distance;
-//        var male            = req.body.male;
-//        var female          = req.body.female;
-//        var other           = req.body.other;
-//        var minAge          = req.body.minAge;
-//        var maxAge          = req.body.maxAge;
-//        var favLang         = req.body.favlang;
-//        var reqVerified     = req.body.reqVerified;
-//
-//        // Opens a generic Mongoose Query. Depending on the post body we will...
-//        var query = Fence.find({});
-//
-//        // ...include filter by Max Distance (converting miles to meters)
-//        if(distance){
-//
-//            // Using MongoDB's geospatial querying features. (Note how coordinates are set [long, lat]
-//            query = query.where('location').near({ center: {type: 'Point', coordinates: [long, lat]},
-//
-//                // Converting meters to miles. Specifying spherical geometry (for globe)
-//                maxDistance: distance * 1609.34, spherical: true});
-//        }
-//
-//        // ...include filter by Gender (all options)
-//        if(male || female || other){
-//            query.or([{ 'gender': male }, { 'gender': female }, {'gender': other}]);
-//        }
-//
-//        // ...include filter by Min Age
-//        if(minAge){
-//            query = query.where('age').gte(minAge);
-//        }
-//
-//        // ...include filter by Max Age
-//        if(maxAge){
-//            query = query.where('age').lte(maxAge);
-//        }
-//
-//        // ...include filter by Favorite Language
-//        if(favLang){
-//            query = query.where('favlang').equals(favLang);
-//        }
-//
-//        // ...include filter for HTML5 Verified Locations
-//        if(reqVerified){
-//            query = query.where('htmlverified').equals("Yep (Thanks for giving us real data!)");
-//        }
-//
-//        // Execute Query and Return the Query Results
-//        query.exec(function(err, users){
-//            if(err)
-//                res.send(err);
-//
-//            // If no errors, respond with a JSON of all users that meet the criteria
-//            res.json(users);
-//        });
-//    });
-};  
+
+    // POST - Restablecer la base de datos a estado inicial
+    app.post('/db/reset', function(req, res) {
+        console.log("Restableciendo base de datos...");
+        try {
+            var initialData = db.resetDatabase();
+            res.json({ success: true, message: "Base de datos restablecida correctamente", data: initialData });
+        } catch(e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // POST - Simular posición de GPS para un animal
+    app.post('/db/simulate', function(req, res) {
+        var body = req.body;
+        console.log("Simulando posición para el animal ID:", body.animalID);
+        try {
+            var animals = db.getAnimals();
+            if (animals.length === 0) {
+                return res.status(400).json({ error: "No hay animales registrados para simular" });
+            }
+            
+            // Buscar el animal seleccionado o tomar uno al azar
+            var animal = null;
+            if (body.animalID) {
+                var found = animals.filter(function(a) { return a._id === body.animalID; });
+                if (found.length > 0) animal = found[0];
+            }
+            if (!animal) {
+                // Seleccionar al azar
+                animal = animals[Math.floor(Math.random() * animals.length)];
+            }
+
+            // Obtener puntos de cerca del potrero del animal
+            var fencepoints = db.getFencepoints(animal.paddock);
+            var minLat, maxLat, minLng, maxLng;
+            if (fencepoints && fencepoints.length >= 3) {
+                minLat = Math.min.apply(null, fencepoints.map(function(fp){ return fp.location[1]; }));
+                maxLat = Math.max.apply(null, fencepoints.map(function(fp){ return fp.location[1]; }));
+                minLng = Math.min.apply(null, fencepoints.map(function(fp){ return fp.location[0]; }));
+                maxLng = Math.max.apply(null, fencepoints.map(function(fp){ return fp.location[0]; }));
+            } else {
+                // Fallback a coordenadas de Sonora, México
+                minLat = 29.0976;
+                maxLat = 29.1076;
+                minLng = -110.9823;
+                maxLng = -110.9723;
+            }
+
+            var lat, lng;
+            var alerts = 0;
+            var shocks = 0;
+            
+            // Decidir si el animal está adentro (75%) o afuera (25%) del potrero
+            var isInside = Math.random() < 0.75;
+            if (isInside) {
+                lat = minLat + Math.random() * (maxLat - minLat);
+                lng = minLng + Math.random() * (maxLng - minLng);
+            } else {
+                // Afuera: Generar un offset para simular escape
+                var offsetLat = (Math.random() > 0.5 ? 1 : -1) * (0.002 + Math.random() * 0.003);
+                var offsetLng = (Math.random() > 0.5 ? 1 : -1) * (0.002 + Math.random() * 0.003);
+                lat = (Math.random() > 0.5 ? minLat : maxLat) + offsetLat;
+                lng = (Math.random() > 0.5 ? minLng : maxLng) + offsetLng;
+                alerts = Math.floor(Math.random() * 3) + 1; // 1 a 3 alertas
+                shocks = Math.random() > 0.4 ? 1 : 0; // Posible descarga
+            }
+
+            var newTracking = {
+                animalid: animal._id,
+                location: [lng, lat],
+                sent_at: new Date().toISOString(),
+                alerts: alerts,
+                shocks: shocks
+            };
+
+            db.addTracking(newTracking);
+            res.json({ success: true, tracking: newTracking, animalName: animal.name });
+        } catch(e) {
+            console.error("Error en simulación:", e);
+            res.status(500).json({ error: e.message });
+        }
+    });
+};

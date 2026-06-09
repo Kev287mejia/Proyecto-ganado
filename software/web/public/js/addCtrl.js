@@ -1,108 +1,100 @@
-// Creates the addCtrl Module and Controller. Note that it depends on the 'geolocation' module and service.
+// addCtrl.js — Controlador para Vista General (overview)
 var addCtrl = angular.module('addCtrl', ['geolocation']);
-addCtrl.controller('addCtrl', function($scope, $http, $rootScope, geolocation, gservice){
-    
-    //Initialise variables
-    $scope.formData = {};
-    // Set initial coordinates to the center of the US
-    $scope.formData.paddock = 0;
-    $scope.formData.point = 0;
-    $scope.formData.version = 0;
-    $scope.formData.latitude = -37.911751;
-    $scope.formData.longitude = 145.138537;
-    $scope.animals = [];
+addCtrl.controller('addCtrl', function ($scope, $http, $rootScope, $timeout, geolocation, gservice) {
 
-    $(document).ready(function() {
-        // Get User's actual coordinates based on HTML5 at window load
-        geolocation.getLocation().then(function (data) {
-            // Set the latitude and longitude equal to the HTML5 coordinates
-            var coords = {lat: data.coords.latitude, long: data.coords.longitude};
+    // Coordenadas por defecto: zona ganadera de Matagalpa, Nicaragua
+    $scope.formData = {
+        paddock  : 0,
+        point    : 0,
+        version  : 0,
+        latitude : 12.9256,
+        longitude: -85.9175
+    };
+    $scope.animals       = [];
+    $scope.selectedAnimal = null;
+    $scope.trackingData  = [];
+    $scope.lastUpdate    = null;
 
-            // Display coordinates in location textboxes rounded to three decimal points
-            $scope.formData.longitude = parseFloat(coords.long).toFixed(6);
-            $scope.formData.latitude = parseFloat(coords.lat).toFixed(6);
-            // Set the latitude and longitude equal to the HTML5 coordinates
-            $.getJSON('/tracking/list', function (data) {
-                gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, data);
-            });
-        });
-
-
+    // -------------------------------------------------------
+    // Inicializar mapa una vez que Angular haya renderizado el partial
+    // -------------------------------------------------------
+    $timeout(function () {
+        // Cargar datos de tracking y animales, luego inicializar mapa
         $.getJSON('/tracking/list', function (data) {
+            $scope.trackingData = data;
+
+            if (data && data.length > 0) {
+                // refreshAnimals carga la info y llama initMap internamente
+                gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, data);
+            } else {
+                // Si no hay tracking, solo mostrar cercas
+                gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
+            }
+        }).fail(function () {
+            gservice.initMap($scope.formData.latitude, $scope.formData.longitude);
+        });
+    }, 150);
+
+    // Intentar usar geolocalización real del usuario
+    geolocation.getLocation().then(function (data) {
+        $scope.formData.latitude  = parseFloat(data.coords.latitude).toFixed(6);
+        $scope.formData.longitude = parseFloat(data.coords.longitude).toFixed(6);
+    }).catch(function () { /* Sin permiso de geolocalización — usar coordenadas por defecto */ });
+
+    // Cargar lista de animales para el selector
+    $.getJSON('/animals/list', function (data) {
+        $scope.$apply(function () {
+            $scope.animals = [{ name: 'Todos', id: null }].concat(
+                data.map(function (a) { return { name: a.name, id: a._id }; })
+            );
+            $scope.selectedAnimal = $scope.animals[0];
+        });
+    });
+
+    // Cargar fecha actual en los filtros
+    var now = new Date();
+    now.setMilliseconds(0);
+    now.setSeconds(0);
+    $scope.formData.newestDate = now;
+    $scope.formData.oldestDate = now;
+
+    // -------------------------------------------------------
+    // Funciones
+    // -------------------------------------------------------
+
+    /** Refresca mapa y tabla con el último tracking */
+    $scope.refresh = function () {
+        $.getJSON('/tracking/list', function (data) {
+            $scope.$apply(function () {
+                $scope.trackingData = data;
+                $scope.lastUpdate   = new Date().toLocaleTimeString('es-MX');
+            });
             gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, data);
         });
+    };
 
-        var now = new Date();
-        now.setMilliseconds(0);
-        now.setSeconds(0);
-        $scope.formData.newestDate = now;
-        //now.setMonth(now.getMonth()-1);
-        $scope.formData.oldestDate = now;
-        $scope.animals[0] = {name: "All", id: null};
-        $.getJSON('/animals/list', function (data) {
-            Array.from(data).forEach(function (n, i) {
-            //data.forEach(function (n, i) {
-
-                $scope.animals[i + 1] = {name: n.name, id: n._id};
+    /** Filtra animales por fecha / ID */
+    $scope.queryAnimals = function () {
+        var body = {
+            oldestDate: $scope.formData.oldestDate,
+            newestDate: $scope.formData.newestDate,
+            animalID  : $scope.selectedAnimal ? $scope.selectedAnimal.id : null
+        };
+        $http.post('/tracking/list', body)
+            .then(function (res) {
+                $scope.trackingData = res.data;
+                $scope.queryCount   = res.data.length;
+                gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, res.data);
+            }, function () {
+                console.error('Error al consultar tracking');
             });
+    };
+
+    // Escuchar clic en el mapa para actualizar coordenadas
+    $rootScope.$on('clicked', function () {
+        $scope.$apply(function () {
+            $scope.formData.latitude  = parseFloat(gservice.clickLat).toFixed(6);
+            $scope.formData.longitude = parseFloat(gservice.clickLong).toFixed(6);
         });
-        $scope.selectedAnimal = $scope.animals[0];
-        console.log($scope.animals);
-        
     });
-    
-//    // Functions
-//    // ----------------------------------------------------------------------------
-//    
-//    
-//    function updateList(data) {
-//        var fencePoints = [];
-//        $scope.fencePoints = data;
-//        $scope.formData.point = $scope.fencePoints.length;
-//        $scope.formData.version = $scope.fencePoints[0].version;  //** Has console error if there is no entries in database
-//        gservice.refresh($scope.formData.latitude, $scope.formData.longitude, false);
-//    }
-//    
-//    // Get coordinates based on mouse click. When a click event is detected....
-//    $rootScope.$on("clicked", function () {
-//
-//        // Run the gservice functions associated with identifying coordinates
-//        $scope.$apply(function () {
-//            $scope.formData.latitude = parseFloat(gservice.clickLat).toFixed(6);
-//            $scope.formData.longitude = parseFloat(gservice.clickLong).toFixed(6);
-//        });
-//    });
-//    
-//    $scope.refresh = function () {
-//        $.getJSON('/tracking/list', function (data) {
-//            console.log(data);
-//            gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, data);
-//        });
-//    };
-//    
-//    
-//    // Take query parameters and incorporate into a JSON queryBody
-//    $scope.queryAnimals = function () {
-//        var queryBody = {};
-//        // Assemble Query Body
-//        queryBody = {
-//            oldestDate: $scope.formData.oldestDate,
-//            newestDate: $scope.formData.newestDate,
-//            animalID  : $scope.selectedAnimal.id
-//        };
-//        // Post the queryBody to the /query POST route to retrieve the filtered results
-//        $http.post('/tracking/list', queryBody)
-//            
-//            // Store the filtered results in queryResults
-//            .success(function (queryResults) {
-//                // Pass the filtered results to the Google Map Service and refresh the map
-//                gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, queryResults);
-//
-//                // Count the number of records retrieved for the panel-footer
-//                $scope.queryCount = queryResults.length;
-//            })
-//            .error(function (queryResults) {
-//                console.log('Error ' + queryResults);
-//            });
-//    };
 });

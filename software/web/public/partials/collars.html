@@ -1,11 +1,11 @@
 <!-- Creates Main Panel -->
 <div id="collar" ng-controller="collarCtrl">
-    <h3 align="center" >Collar Settings</h3>
+    <h3 align="center" >Configuración de Collares</h3>
         <div class="left-pane">
             
-            <h3 align="center">Select the Animal to Edit</h3>
+            <h3 align="center">Seleccionar el Animal para Editar</h3>
             <table id="table-devices" >
-                <thead><tr><td width="33%"><b>ID</b></td><td width="33%"><b>Paddock</b></td><td width="34%"><b>RF ID</b></td></tr></thead>
+                <thead><tr><td width="33%"><b>ID</b></td><td width="33%"><b>Potrero</b></td><td width="34%"><b>ID de RF</b></td></tr></thead>
                 <tbody>
                     <tr ng-repeat="device in deviceList" ng-class="{'selected':$index == selectedRow}" ng-click=view($index)><td>{{device.name}}</td><td>{{device.breed}}</td><td>{{device.RF_ID}}</td></tr>
                 </tbody>
@@ -13,61 +13,61 @@
        
         </div>
         <div class="right-pane">
-            <h3 align="center">Animal and Collar Settings</h3>
+            <h3 align="center">Configuración de Animal y Collar</h3>
             <form id = "collarForm" name ="collarForm" novalidate>
                 <div class="form-group">
-                    <label for="name">Animal Name/ID: </label>
+                    <label for="name">Nombre/ID del Animal: </label>
                     <input type="text" class="form-control" id="name" placeholder="Bessy" ng-model="formData.name" required>
                 </div>
                 <div class="form-group">
-                    <label for="born">Born on: </label>
+                    <label for="born">Fecha de Nacimiento: </label>
                     <input type="datetime-local" class="form-control" id="born" ng-model="formData.born" required>
                 </div>
                 <div class="form-group">
-                    <label for="breed">Breed: </label>
-                    <input type="text" class="form-control" id="breed" placeholder="Angus Cow" ng-model="formData.breed" required>
+                    <label for="breed">Raza: </label>
+                    <input type="text" class="form-control" id="breed" placeholder="Angus" ng-model="formData.breed" required>
                 </div>
                 <div class="form-group">
-                    <label for="gender">Gender: </label><br>
-                    <input type="radio" name="gender" value="male" ng-model="formData.gender"> Male
-                    <input type="radio" name="gender" value="female" ng-model="formData.gender"> Female<br>
+                    <label for="gender">Género: </label><br>
+                    <input type="radio" name="gender" value="male" ng-model="formData.gender"> Macho
+                    <input type="radio" name="gender" value="female" ng-model="formData.gender"> Hembra<br>
                 </div>
                 <div class="form-group">
-                    <label for="comments">Comments: </label>
+                    <label for="comments">Comentarios: </label>
                     <input type="text" class="form-control" id="comments" placeholder="" ng-model="formData.comments" required>
                 </div>
                 <div class="form-group">
-                    <label for="paddock">Paddock: </label>
+                    <label for="paddock">Potrero: </label>
                     <input type="number" class="form-control" id="paddock" placeholder="0" ng-model="formData.paddock" required min="0" max="5">
                 </div>
                 <div class="form-group">
-                    <label for="colour">Colour: </label>
+                    <label for="colour">Color: </label>
                     <input type="color" class="form-control" id="colour" ng-model="formData.colour" required>
                 </div>
                 <div class="form-group">
-                    <label for="RF_ID">Collar RF ID: </label>
+                    <label for="RF_ID">ID de RF del Collar: </label>
                     <input type="number" class="form-control" id="RF_ID" placeholder="123" ng-model="formData.RF_ID" required min="1" max="254">
                 </div>
                 <div class="form-group">
-                    <label for="testing">Testing Mode: </label>
+                    <label for="testing">Modo de Prueba: </label>
                     <input type="checkbox" class="form-control" id="testing" ng-model="formData.testing">
                 </div>
                 <div class="form-group">
-                    <label for="distthresh">Distance Threshhold (GPS datalogging):  </label>
+                    <label for="distthresh">Umbral de Distancia (Registro de datos GPS):  </label>
                     <input type="number" id="distthresh" placeholder="0" ng-model="formData.distthresh" required min="1" max="255">
                 </div>
                 <div class="form-group">
-                    <label for="motionthresh">Motion Threshhold (Wake on Motion):  </label>
+                    <label for="motionthresh">Umbral de Movimiento (Despertar por Movimiento):  </label>
                     <input type="number" id="motionthresh" placeholder="0" ng-model="formData.motionthresh" required min="0" max="255">
                 </div>
                 <div class="form-group">
-                    <label for="magbias">Magnetometer Calibration Biases (X, Y, Z):  </label>
+                    <label for="magbias">Sesgos de Calibración del Magnetómetro (X, Y, Z):  </label>
                     <input type="number"  id="magbias" placeholder="0" ng-model="formData.magbias0" required min="-1000" max="1000">
                     <input type="number"  id="magbias" placeholder="0" ng-model="formData.magbias1" required min="-1000" max="1000">
                     <input type="number"  id="magbias" placeholder="0" ng-model="formData.magbias2" required min="-1000" max="1000">
                 </div>
-                <button type="submit" class="btn btn-danger btn-50p" ng-click="saveAs()" ng-disabled="collarForm.$invalid">Save As</button>
-                <button type="submit" class="btn btn-danger btn-50p" ng-click="update()" ng-disabled="collarForm.$invalid">Update</button>
+                <button type="submit" class="btn btn-danger btn-50p" ng-click="saveAs()" ng-disabled="collarForm.$invalid">Guardar Como</button>
+                <button type="submit" class="btn btn-danger btn-50p" ng-click="update()" ng-disabled="collarForm.$invalid">Actualizar</button>
             </form>
         </div>
     

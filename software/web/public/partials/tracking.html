@@ -1,47 +1,88 @@
-<!-- Google Map -->
-<div class="left-pane" >
-    <div id="map"></div>
+<!-- tracking.html — Vista de Mapa con seguimiento de animales -->
+
+<!-- Mapa satélite (panel izquierdo) -->
+<div class="left-pane" style="height:100vh; min-height:500px;">
+    <div id="map" style="height:100%; width:100%; background-color:#1a1a2e;"></div>
 </div>
 
+<!-- Panel derecho -->
 <div class="right-pane">
-
-
-    <!-- Creates Main Panel -->
     <div class="right" ng-controller="trackingCtrl">
-        <!-- Panel Title -->
+
         <div class="right-heading">
-            <h2 class="right-title">View Animal Locations</h2>
+            <h2 class="right-title">Ver Ubicaciones de Animales</h2>
         </div>
 
-        <!-- Panel Body -->
         <div class="right-body">
-            <table class="table-points" ng-hide="true" >
-                <thead><tr><td width="45px">ID</td><td width="45px">Point</td><td>Lat</td><td>Lon</td><td width="70px"></td></tr></thead>
-                <tbody id="fenceList">
-                    <tr ng-repeat="fencePoint in fencePoints"><td>{{fencePoint.paddock}}</td><td>{{fencePoint.order}}</td><td>{{fencePoint.location[0]}}</td><td>{{fencePoint.location[1]}}</td><td><button type="submit" ng-click="deletePoint(fencePoint._id)" ng-disabled="addForm.$invalid">Delete</button></td></tr>
-                </tbody>
-            </table>
 
-
+            <!-- Filtros -->
             <form>
                 <div class="form-group">
-                <label for="animalID">Animal ID:</label>
-                    <select class="form-control" data-ng-options="o.name for o in animals" data-ng-model="selectedAnimal"></select>
+                    <label>Animal:</label>
+                    <select class="form-control"
+                            data-ng-options="o.name for o in animals"
+                            data-ng-model="selectedAnimal">
+                    </select>
                 </div>
 
                 <div class="form-group">
-                <label for="newestDate">Between:</label>
-                    <input id="currentDate" type="datetime-local" class="form-control" name="newestDate" ng-model="formData.newestDate">
+                    <label>Desde:</label>
+                    <input type="datetime-local" class="form-control"
+                           ng-model="formData.oldestDate">
                 </div>
 
                 <div class="form-group">
-                <label for="oldestDate">and</label>
-                    <input type="datetime-local" class="form-control" name="oldestDate" ng-model="formData.oldestDate" >
+                    <label>Hasta:</label>
+                    <input type="datetime-local" class="form-control"
+                           ng-model="formData.newestDate">
                 </div>
 
-                <button type="submit" class="btn btn-danger btn-block" ng-click="queryAnimals()" ng-disabled="addForm.$invalid">Query Animals</button>
-                <button type="submit" class="btn btn-danger btn-block" ng-click="refresh()" ng-disabled="addForm.$invalid">Refresh</button>
+                <button type="submit" class="btn btn-danger btn-block"
+                        ng-click="queryAnimals()">
+                    Consultar Animales
+                </button>
+                <button type="button" class="btn btn-default btn-block"
+                        ng-click="refresh()">
+                    ↺ Actualizar
+                </button>
             </form>
+
+            <!-- Estado -->
+            <p ng-if="lastUpdate" style="font-size:11px;color:#aaa;margin-top:6px;">
+                Última actualización: {{lastUpdate}} · Auto-refresco cada 30s
+            </p>
+
+            <!-- Tabla de resultados -->
+            <div ng-if="trackingData.length > 0" style="margin-top:12px;">
+                <p style="font-size:12px;color:#888;">{{queryCount || trackingData.length}} registros</p>
+                <table class="table-points" style="width:100%;font-size:12px;">
+                    <thead>
+                        <tr>
+                            <td><b>Animal</b></td>
+                            <td><b>Lat</b></td>
+                            <td><b>Lon</b></td>
+                            <td><b>⚠</b></td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="t in trackingData | limitTo:10"
+                            ng-style="{'background': t.alerts > 0 ? 'rgba(220,53,69,0.08)' : ''}">
+                            <td>{{t.animalid}}</td>
+                            <td>{{t.location[1] | number:4}}</td>
+                            <td>{{t.location[0] | number:4}}</td>
+                            <td ng-style="{'color': t.alerts > 0 ? '#dc3545' : '#28a745'}">
+                                {{t.alerts > 0 ? '⚠ ' + t.alerts : '✓'}}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sin datos -->
+            <p ng-if="trackingData.length === 0"
+               style="color:#aaa;font-size:13px;margin-top:16px;text-align:center;">
+                Sin registros para este filtro
+            </p>
 
         </div>
     </div>

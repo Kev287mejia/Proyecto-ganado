@@ -3,23 +3,26 @@
 <html class="no-js" ng-app="OpenFence">
 <head>
     <meta charset="utf-8">
-    <title>OpenFence</title>
-    <meta name="description" content="OpenFence - Digital Livestock Fencing Solution">
+    <title>GeoGanado</title>
+    <meta name="description" content="GeoGanado - Cercado Digital Inteligente para Ganado">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- CSS -->
-    <link rel="stylesheet" href="../bower_components/bootstrap/dist/css/bootstrap.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css"/>
     <link rel="stylesheet" href="style.css"/>
     <!-- Holder JS -->
-    <script src="../bower_components/holderjs/holder.js"></script>
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAemnUG2aVbsGQ6i8-XRLWCP5_xT9Xss1E"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/holder/2.9.8/holder.min.js"></script>
+    <!-- Leaflet Maps API -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Modernizr -->
-    <script src="../bower_components/modernizr/bin/modernizr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
     <!-- JS Source -->
-    <script src="../bower_components/jquery/src/jquery.js"></script>
-    <script src="../bower_components/angular/angular.js"></script>
-    <script src="../bower_components/angular-route/angular-route.js"></script>
-    <script src="../bower_components/angularjs-geolocation/dist/angularjs-geolocation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.5.8/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.5.8/angular-route.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/arunisrael/angularjs-geolocation/dist/angularjs-geolocation.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Angular Scripts -->
     <script src="js/app.js"></script>
     <script src="js/addCtrl.js"></script>
@@ -27,6 +30,8 @@
     <script src="js/fenceCtrl.js"></script>  
     <script src="js/collarCtrl.js"></script>  
     <script src="js/trackingCtrl.js"></script>  
+    <script src="js/statisticsCtrl.js"></script>
+    <script src="js/settingsCtrl.js"></script>
     <script src="js/gservice.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
     
@@ -38,8 +43,8 @@
 	<div class="openfence-logos">
 		<a href="/">
 <!--			<img src="holder.js/400x220" class="img-responsive">-->
-			<h1>OpenFence</h1>
-			<p>Digital Fencing for Livestock</p>
+			<h1>Geo<span>Ganado</span></h1>
+			<p>Cercado Digital para Ganado</p>
 		</a>
 	</div>
 
@@ -47,36 +52,36 @@
 		<ul class="list-unstyled nav-text">
             <li><a href="/#/overview" >
 				<img src="images/home.png" class="menu-icons">
-				Overview
+				Vista General
 			</a></li>
-			<li class="divider">Fence Management</li>
+			<li class="divider">Gestión de Cercas</li>
 			<li><a href="/#/map">
 				<img src="images/map.png" class="menu-icons">
-				Positioning
+				Posicionamiento
 			</a></li>
 			<li><a href="/#/collars">
 				<img src="images/collar.png" class="menu-icons">
-				Collar Settings
+				Configuración de Collares
 			</a></li>
 
-			<li class="divider">Livestock Tracking</li>
+			<li class="divider">Seguimiento de Ganado</li>
 			<li><a href="/#/tracking">
                 <img src="images/track.png" class="menu-icons">
-                Map View
+                Vista de Mapa
             </a></li>
             <li><a href="/#/statistics">
                 <img src="images/statistics.png" class="menu-icons">
-                Statistics (TBI)
+                Estadísticas
             </a></li>
             
-            <li class="divider">Website</li>
+            <li class="divider">Sitio Web</li>
 			<li><a href="/#/settings">
                 <img src="images/settings.png" class="menu-icons">
-                Settings (TBI)
+                Configuración
             </a></li>
             <li><a href="/#/about">
                 <img src="images/logout.png" class="menu-icons">
-                Log Out (TBI)
+                Cerrar Sesión (Pendiente)
             </a></li>
 		</ul>
 	</nav>

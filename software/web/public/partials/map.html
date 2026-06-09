@@ -1,6 +1,6 @@
 <!-- Google Map -->
-<div class="left-pane" >
-    <div id="map" name="map"></div>
+<div class="left-pane" style="height: 100vh; min-height: 500px;">
+    <div id="map" name="map" style="height: 100%; width: 100%; background-color: #cccccc;"></div>
 </div>
 
 <div class="right-pane">
@@ -8,7 +8,7 @@
     <div class="right" ng-controller="fenceCtrl">
         <!-- Panel Title -->
         <div class="right-heading">
-            <h2 class="right-title">Update Fence Locations
+            <h2 class="right-title">Actualizar Ubicación de Cercas
             <img src="images/refresh.png" class="menu-icons" ng-click="updatelist()" width=20px height=20px>
             </h2>
         </div>
@@ -16,37 +16,37 @@
         <!-- Panel Body -->
         <div class="right-body">
             <table class="table-points" >
-                <thead><tr><td width="45px">ID</td><td width="45px">Point</td><td>Lat</td><td>Lon</td><td width="70px"></td></tr></thead>
+                <thead><tr><td width="45px">ID</td><td width="45px">Punto</td><td>Lat</td><td>Lon</td><td width="70px"></td></tr></thead>
                 <tbody id="fenceList">
-                    <tr ng-repeat="fencePoint in fencePoints"><td>{{fencePoint.paddock}}</td><td>{{fencePoint.order}}</td><td>{{fencePoint.location[1]}}</td><td>{{fencePoint.location[0]}}</td><td><button type="submit" ng-click="deletePoint(fencePoint._id)" ng-disabled="addForm.$invalid">Delete</button></td></tr>
+                    <tr ng-repeat="fencePoint in fencePoints"><td>{{fencePoint.paddock}}</td><td>{{fencePoint.order}}</td><td>{{fencePoint.location[1]}}</td><td>{{fencePoint.location[0]}}</td><td><button type="submit" ng-click="deletePoint(fencePoint._id)" ng-disabled="addForm.$invalid">Eliminar</button></td></tr>
                 </tbody>
             </table>
 
             <form id="addPoint">
-                <h3 text-align="right">Insert New Point</h3>
+                <h3 text-align="right">Insertar Nuevo Punto</h3>
                 <div class="form-group">
-                <label for="paddock">Paddock (between 0 and 5):</label>
+                <label for="paddock">Potrero (entre 0 y 5):</label>
                     <input type="number" class="form-control" name="paddock" ng-model="formData.paddock" min="0" max="5">
                 </div>
                 <div class="form-group">
-                <label for="point">Point (between 0 and 255):</label>
+                <label for="point">Punto (entre 0 y 255):</label>
                     <input type="number" class="form-control" name="point" ng-model="formData.point" min="0" max="255">
                 </div>
                 <div class="form-group">
-                <label for="point">Version:</label>
+                <label for="point">Versión:</label>
                     <input type="number" class="form-control" name="version" ng-model="formData.version" min="0" max="255" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="latitude">Latitude</label>
+                    <label for="latitude">Latitud</label>
                     <input type="text" class="form-control" id="latitude" value="39.500" ng-model="formData.latitude" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="longitude">Longitude</label>
+                    <label for="longitude">Longitud</label>
                     <input type="text" class="form-control" id="longitude" value="-98.350" ng-model="formData.longitude" readonly>
                 </div>
                 <!-- Submit button. Note that its tied to createUser() function from addCtrl. Also note ng-disabled logic which prevents early submits.  -->
-                <button type="submit" class="btn btn-danger btn-block" ng-click="addPoint()" ng-disabled="addForm.$invalid">Add Point</button>
-                <button type="submit" class="btn btn-danger btn-block" ng-click="send2Devices()" ng-disabled="addForm.$invalid">Upload to Collars</button>
+                <button type="submit" class="btn btn-danger btn-block" ng-click="addPoint()" ng-disabled="addForm.$invalid">Agregar Punto</button>
+                <button type="submit" class="btn btn-danger btn-block" ng-click="send2Devices()" ng-disabled="addForm.$invalid">Cargar a los Collares</button>
             </form>
 
         </div>

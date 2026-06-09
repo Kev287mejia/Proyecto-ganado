@@ -1,290 +1,311 @@
-/*jslint browser: true*/
-/*global $, jQuery, angular, google */
-/*jslint plusplus: true */
+// gservice.js
+// Interacción con Leaflet Maps para GeoGanado
 
-// Creates the gservice factory. This will be the primary means by which we interact with Google Maps
 angular.module('gservice', [])
     .factory('gservice', function ($rootScope, $http) {
-    
-        // Initialize Variables
-        // -------------------------------------------------------------
-        // Service our factory will return
+
+        // -------------------------------------------------------
+        // Variables internas
+        // -------------------------------------------------------
         var googleMapService = {};
 
-        // Array of locations obtained from API calls
-        var locations = [];
+        // Coordenadas por defecto: zona ganadera de Matagalpa, Nicaragua
+        var DEFAULT_LAT  =  12.9256;
+        var DEFAULT_LNG  = -85.9175;
 
-        // Selected Location (initialize to center of Monash Oval)
-        var selectedLat = -37.911751;
-        var selectedLong = 145.138537;
-    
-        // Handling Clicks and location selection
+        var selectedLat  = DEFAULT_LAT;
+        var selectedLong = DEFAULT_LNG;
+
         googleMapService.clickLat  = 0;
         googleMapService.clickLong = 0;
-            // If map has not been created...
 
-        // Functions
-        // --------------------------------------------------------------
-        // Refresh the Map with new data. Takes three parameters (lat, long, and filtering results)
-        googleMapService.refresh = function (latitude, longitude, filteredResults) {
+        var map         = null;
+        var mapLayers   = [];
 
-            // Clears the holding array of locations
-            locations = [];
+        // Array de ubicaciones que se dibujarán en el mapa
+        var locations = [];
 
-            // Set the selected lat and long equal to the ones provided on the refresh() call
-            selectedLat = latitude;
-            selectedLong = longitude;
-            
-            // If filtered results are provided in the refresh() call...
-            if (filteredResults) {
+        // -------------------------------------------------------
+        // Helpers internos
+        // -------------------------------------------------------
 
-                // Then convert the filtered results into map points.
-                locations = convertToMapPoints(filteredResults);
-
-                // Then, initialize the map -- noting that a filter was used (to mark icons yellow)
-                initialize(latitude, longitude, true);
-            } else {
-                // Perform an AJAX call to get all of the records in the db.
-                $http.get('/fencepoints').success(function (response) {
-                    // Then convert the results into map points
-                    locations = convertToMapPoints(response);
-                    initialize(latitude, longitude, false);
-                }).error(function () {});
-                
-                // Then initialize the map -- noting that no filter was used.
-
-            }
-        };
-        var animals = [], animalids = [];
-        googleMapService.refreshAnimals = function (latitude, longitude, filteredResults) {
-            locations = [];
-            var i;
-            
-            $.getJSON('/animals/list', function (data) {
-                animals = [];
-                animalids = [];
-                data.forEach(function (n, i) {
-                    animalids[i] = n._id;
-                    animals[i] = n;
-                });
+        /** Elimina todos los marcadores/polígonos del mapa */
+        function clearMap() {
+            mapLayers.forEach(function (layer) {
+                if (map) { map.removeLayer(layer); }
             });
+            mapLayers = [];
+        }
 
-            // Loop through all of the JSON entries provided in the response
-            for (i = 0; i < filteredResults.length; i++) {
-                var animalpoint = filteredResults[i];
-                var index = animalids.indexOf(animalpoint.animalid);
-                if (index === -1) { break; }
-                
-                var  contentString =
-                    '<p><b>Paddock</b>: ' + animals[index].paddock +
-                    '<br><b>Name</b>: ' + animals[index].name +
-                    '<br><b>Sent</b>: ' + animalpoint.sent_at +
-                    '<br><b>Location</b>: ' + animalpoint.location[1] + ', ' + animalpoint.location[0] +
-                    '<br><b>Alerts, Shocks</b>: ' + animalpoint.alerts + ', ' + animalpoint.shocks +
-                    '</p>';
-                
-                // Converts each of the JSON records into Google Maps Location format (Note [Lat, Lng] format).
-                locations.push({
-                    latlon: new google.maps.LatLng(animalpoint.location[1], animalpoint.location[0]),
-                    message: new google.maps.InfoWindow({
-                        content: contentString,
-                        maxWidth: 320
-                    }),
-                    colour: animals[index].colour,
-                    radius: animals[index].distthresh,
-                    paddock: animalpoint.paddock,
-                    animal: animalpoint.animal,
-                    ANnotFE: true
-                });
-                
+        /**
+         * Convierte un array de fencepoints (del API) en objetos de mapa.
+         * Formato API: { location: [lng, lat], paddock, order, version }
+         */
+        function convertFencepoints(response) {
+            return response.map(function (fp) {
+                return {
+                    latlng  : [fp.location[1], fp.location[0]], // [lat, lng]
+                    message : '<p><b>Potrero</b>: ' + fp.paddock +
+                              '<br><b>Punto</b>: '  + fp.order   +
+                              '<br><b>Versión</b>: '+ fp.version + '</p>',
+                    paddock : fp.paddock,
+                    order   : fp.order,
+                    version : fp.version,
+                    isAnimal: false
+                };
+            });
+        }
+
+        /**
+         * Convierte un array de tracking records + animals en objetos de mapa.
+         * Devuelve una Promise (usa $.getJSON internamente).
+         */
+        function buildAnimalLocations(trackingData) {
+            return new Promise(function (resolve) {
+                $.getJSON('/animals/list', function (animals) {
+                    var result = [];
+                    trackingData.forEach(function (tp) {
+                        var animal = animals.find(function (a) { return a._id === tp.animalid; });
+                        if (!animal) { return; }
+
+                        var alertBadge = tp.alerts > 0
+                            ? '<span style="color:red">⚠ ' + tp.alerts + ' alerta(s)</span>'
+                            : '<span style="color:green">✓ Sin alertas</span>';
+
+                        var shockBadge = tp.shocks > 0
+                            ? '<span style="color:orange">⚡ ' + tp.shocks + ' descarga(s)</span>'
+                            : '';
+
+                        result.push({
+                            latlng  : [tp.location[1], tp.location[0]],
+                            message : '<div style="min-width:180px">' +
+                                      '<b>' + animal.name + '</b> (' + animal.breed + ')<br>' +
+                                      '<b>Potrero:</b> ' + animal.paddock + '<br>' +
+                                      '<b>Enviado:</b> ' + new Date(tp.sent_at).toLocaleString('es-MX') + '<br>' +
+                                      '<b>Posición:</b> ' + tp.location[1].toFixed(5) + ', ' + tp.location[0].toFixed(5) + '<br>' +
+                                      alertBadge + ' ' + shockBadge +
+                                      '</div>',
+                            colour  : animal.colour   || '#FF5733',
+                            radius  : animal.distthresh || 15,
+                            name    : animal.name,
+                            isAnimal: true
+                        });
+                    });
+                    resolve(result);
+                }).fail(function () { resolve([]); });
+            });
+        }
+
+        // -------------------------------------------------------
+        // Inicialización del mapa Leaflet
+        // -------------------------------------------------------
+
+        /**
+         * Crea o reutiliza la instancia del mapa Leaflet.
+         * Si el contenedor #map fue destruido por Angular (cambio de ruta),
+         * destruye el mapa anterior y crea uno nuevo.
+         */
+        function ensureMap(lat, lng) {
+            var mapDiv = document.getElementById('map');
+            if (!mapDiv) { return false; }
+
+            // Si ya hay un mapa pero su contenedor fue removido del DOM (cambio de ruta Angular)
+            if (map) {
+                try {
+                    var container = map.getContainer();
+                    if (!document.body.contains(container)) {
+                        map.remove();
+                        map = null;
+                    }
+                } catch (e) {
+                    map = null;
+                }
             }
-            // Perform an AJAX call to get all of the records in the db.
-            $http.get('/fencepoints').success(function (response) {
-                // Then convert the results into map points
-                var temp = convertToMapPoints(response);
-                temp.forEach(function (n, i) {
-                    locations.push(temp[i]);
-                });
-                initialize(latitude, longitude, false);
-            }).error(function () {});
 
-        };
-        
-
-        // Private Inner Functions
-        // --------------------------------------------------------------
-        // Convert a JSON of fencepoints into map points
-        var convertToMapPoints = function (response) {
-            // Clear the locations holder
-            var locationsConvert = [];
-            
-            var i;
-            // Loop through all of the JSON entries provided in the response
-            for (i = 0; i < response.length; (i++)) {
-                var fencepoint = response[i];
-
-                // Create popup windows for each record
-                var  contentString =
-                    '<p><b>Paddock</b>: ' + fencepoint.paddock +
-                    '<br><b>Point</b>: ' + fencepoint.order +
-                    '<br><b>Version</b>: ' + fencepoint.version +
-                    '</p>';
-
-                // Converts each of the JSON records into Google Maps Location format (Note [Lat, Lng] format).
-                locationsConvert.push({
-                    latlon: new google.maps.LatLng(fencepoint.location[1], fencepoint.location[0]),
-                    message: new google.maps.InfoWindow({
-                        content: contentString,
-                        maxWidth: 320
-                    }),
-                    paddock: fencepoint.paddock,
-                    order: fencepoint.order,
-                    version: fencepoint.version,
-                    ANnotFE: false
-                });
-            }
-
-            // location is now an array populated with records in Google Maps format
-            return locationsConvert;
-        };
-    
-
-            
-        // Initializes the map
-        var oldZoom = 17;
-        var initialize = function (latitude, longitude, filter) {
-            var map;
-            // Uses the selected lat, long as starting point
-            var myLatLng = new google.maps.LatLng(selectedLat, selectedLong);
-            var currentInfoWindow;
-            var fencepath = [], test1 = [];
-            // If map has not been created...
             if (!map) {
-                // Create a new map and place in the index.html page
-                    map = new google.maps.Map(document.getElementById('map'), {
-                    center: myLatLng,
-                    zoom: oldZoom,
-                    mapTypeId: 'satellite',
-                    streetViewControl: false
-                    //disableDefaultUI: true
+                map = L.map('map').setView([lat, lng], 15);
+
+                // Tiles satélite ESRI (sin clave de API)
+                L.tileLayer(
+                    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    {
+                        maxZoom    : 20,
+                        attribution: 'Tiles &copy; Esri &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                    }
+                ).addTo(map);
+
+                // Capa de etiquetas/calles encima del satélite
+                L.tileLayer(
+                    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+                    { maxZoom: 20, opacity: 0.6 }
+                ).addTo(map);
+
+                // Clic en el mapa → selecciona coordenadas
+                map.on('click', function (e) {
+                    googleMapService.clickLat  = e.latlng.lat;
+                    googleMapService.clickLong = e.latlng.lng;
+                    $rootScope.$broadcast('clicked');
                 });
+            } else {
+                // Reutilizar mapa existente — limpiar capas anteriores
+                clearMap();
             }
 
-            google.maps.event.addListener(map, "zoom_changed", function () { oldZoom = map.getZoom(); });
-            // Loop through each location in the array and place a marker
-            var val = 0, val1 = 0;
-            locations.forEach(function (n, i) {
-                var marker;
-                if (n.ANnotFE) {
+            return true;
+        }
 
-                    var circle = new google.maps.Circle({
-                        strokeColor: n.colour,
-                        strokeOpacity: 0.8,
-                        strokeWeight: 2,
-                        fillColor: n.colour,
-                        fillOpacity: 0.5,
-                        map: map,
-                        center: n.latlon,
-                        radius: n.radius,
-                        position: n.latlon,
-                    });
-                    test1[val1] =  n.latlon;
-                    val1 = val1 + 1;
-                    // For each marker created, add a listener that checks for clicks
-                    google.maps.event.addListener(circle, 'click', function (e) {
-                        // When clicked, open the selected marker's message
-                        if (currentInfoWindow) {
-                            currentInfoWindow.message.close();
-                        }
-                        currentInfoWindow = n;
-                        currentInfoWindow.message.open(map, circle);
-                    });
+        /**
+         * Dibuja los puntos / polígonos / marcadores de la lista `locations` en el mapa.
+         */
+        function renderLocations(lat, lng) {
+            if (!map) { return; }
+            clearMap();
+
+            // Agrupar puntos de cerca por potrero para dibujar polígonos independientes
+            var fenceByPaddock = {};
+
+            locations.forEach(function (loc) {
+                if (loc.isAnimal) {
+                    // Marcador circular para animales
+                    var circle = L.circle(loc.latlng, {
+                        color      : loc.colour,
+                        fillColor  : loc.colour,
+                        fillOpacity: 0.55,
+                        radius     : loc.radius || 15,
+                        weight     : 3
+                    }).addTo(map);
+                    circle.bindPopup(loc.message);
+
+                    // Etiqueta con el nombre del animal
+                    var label = L.marker(loc.latlng, {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div style="background:rgba(0,0,0,0.65);color:#fff;padding:2px 6px;' +
+                                  'border-radius:4px;font-size:11px;white-space:nowrap;font-weight:bold;">' +
+                                  loc.name + '</div>',
+                            iconAnchor: [0, -18]
+                        })
+                    }).addTo(map);
+
+                    mapLayers.push(circle);
+                    mapLayers.push(label);
+
                 } else {
-                    marker = new google.maps.Marker({
-                        position: n.latlon,
-                        map: map,
-                        title: "Big Map",
-                        label: n.order.toString()
+                    // Punto de cerca
+                    if (!fenceByPaddock[loc.paddock]) { fenceByPaddock[loc.paddock] = []; }
+                    fenceByPaddock[loc.paddock].push(loc);
+
+                    var numIcon = L.divIcon({
+                        className: '',
+                        html: '<div style="background:#fff;border:2px solid #0057b7;border-radius:50%;' +
+                              'width:24px;height:24px;text-align:center;font-weight:bold;' +
+                              'line-height:22px;color:#0057b7;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.4);">' +
+                              loc.order + '</div>',
+                        iconSize  : [24, 24],
+                        iconAnchor: [12, 12]
                     });
-                    fencepath[val] =  n.latlon;
-                    val = val + 1;
-                    
-                    // For each marker created, add a listener that checks for clicks
-                    google.maps.event.addListener(marker, 'click', function (e) {
-                        // When clicked, open the selected marker's message
-                        if (currentInfoWindow) {
-                            currentInfoWindow.message.close();
-                        }
-                        currentInfoWindow = n;
-                        currentInfoWindow.message.open(map, marker);
-                    });
+                    var mk = L.marker(loc.latlng, { icon: numIcon }).addTo(map);
+                    mk.bindPopup(loc.message);
+                    mapLayers.push(mk);
                 }
-
-                
             });
 
-            var fenceExterior = new google.maps.Polygon({
-                paths: fencepath,
-                strokeColor: '#0000FF',
-                strokeOpacity: 0.8,
-                strokeWeight: 3,
-                fillColor: '#0000FF',
-                fillOpacity: 0.1
-            });
-            fenceExterior.setMap(map);
-//            if(test1.length>1){
-//                var animalpath = new google.maps.Polyline({
-//                      paths: test1,
-////                      geodesic: true,
-//                      strokeColor: '#0000FF',
-//                      strokeOpacity: 1.0,
-//                      strokeWeight: 3,
-//                    });
-//                console.log("Should have drawn Lines");
-//                animalpath.setMap(map);
-//            }
-            // Set initial location as a bouncing red marker
-            var initialLocation = new google.maps.LatLng(latitude, longitude);
-            marker = new google.maps.Marker({
-                position: initialLocation,
-                animation: google.maps.Animation.BOUNCE,
-                map: map,
-                icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-            });
-            var lastMarker = marker;
-
-            // Function for moving to a selected location
-            map.panTo(new google.maps.LatLng(latitude, longitude));
-
-            // Clicking on the Map moves the bouncing red marker
-            google.maps.event.addListener(map, 'click', function (e) {
-                var marker = new google.maps.Marker({
-                    position: e.latLng,
-                    animation: google.maps.Animation.BOUNCE,
-                    map: map,
-                    icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-                });
-
-                // When a new spot is selected, delete the old red bouncing marker
-                if (lastMarker) {
-                    lastMarker.setMap(null);
+            // Dibujar polígono de cada potrero
+            var paddockColors = ['#0057b7', '#e8a000', '#28a745', '#dc3545', '#6f42c1', '#17a2b8'];
+            Object.keys(fenceByPaddock).forEach(function (paddockId) {
+                var pts = fenceByPaddock[paddockId].sort(function (a, b) { return a.order - b.order; });
+                if (pts.length >= 3) {
+                    var color = paddockColors[parseInt(paddockId) % paddockColors.length];
+                    var poly = L.polygon(pts.map(function (p) { return p.latlng; }), {
+                        color      : color,
+                        weight     : 3,
+                        opacity    : 0.9,
+                        fillColor  : color,
+                        fillOpacity: 0.12
+                    }).addTo(map);
+                    poly.bindPopup('<b>Potrero ' + paddockId + '</b><br>' + pts.length + ' puntos de cerca');
+                    mapLayers.push(poly);
                 }
+            });
+        }
 
-                // Create a new red bouncing marker and move to it
-                lastMarker = marker;
-                map.panTo(marker.position);
+        // -------------------------------------------------------
+        // API pública del servicio
+        // -------------------------------------------------------
 
-                // Update Broadcasted Variable (lets the panels know to change their lat, long values)
-                googleMapService.clickLat = marker.getPosition().lat();
-                googleMapService.clickLong = marker.getPosition().lng();
-                $rootScope.$broadcast("clicked");
+        /**
+         * initMap(lat, lng)
+         * Los controladores deben llamar esto desde $timeout después de que el DOM esté listo.
+         * lat/lng son opcionales; usa las coordenadas de Sonora por defecto.
+         */
+        googleMapService.initMap = function (lat, lng) {
+            var useLat = lat  || selectedLat  || DEFAULT_LAT;
+            var useLng = lng  || selectedLong || DEFAULT_LNG;
+            if (!ensureMap(useLat, useLng)) { return; }
+            map.setView([useLat, useLng], 15);
+            renderLocations(useLat, useLng);
+        };
+
+        /**
+         * refresh(lat, lng, filteredResults)
+         * Carga puntos de cerca del DB y refresca el mapa.
+         */
+        googleMapService.refresh = function (lat, lng, filteredResults) {
+            selectedLat  = lat  || DEFAULT_LAT;
+            selectedLong = lng  || DEFAULT_LNG;
+            locations = [];
+
+            $http.get('/fencepoints').then(function (res) {
+                locations = convertFencepoints(res.data || []);
+                if (ensureMap(selectedLat, selectedLong)) {
+                    renderLocations(selectedLat, selectedLong);
+                }
+            }, function () {
+                if (ensureMap(selectedLat, selectedLong)) {
+                    renderLocations(selectedLat, selectedLong);
+                }
             });
         };
 
+        /**
+         * refreshAnimals(lat, lng, trackingData)
+         * Carga animales + puntos de cerca y los muestra juntos en el mapa.
+         */
+        googleMapService.refreshAnimals = function (lat, lng, trackingData) {
+            selectedLat  = lat  || DEFAULT_LAT;
+            selectedLong = lng  || DEFAULT_LNG;
+            locations = [];
 
-        // Refresh the page upon window load. Use the initial latitude and longitude
-        google.maps.event.addDomListener(window, 'load', googleMapService.refresh(selectedLat, selectedLong));
+            if (!trackingData || trackingData.length === 0) {
+                // Solo mostrar cercas
+                googleMapService.refresh(selectedLat, selectedLong, false);
+                return;
+            }
+
+            // Cargar animales y puntos de cerca en paralelo
+            Promise.all([
+                buildAnimalLocations(trackingData),
+                new Promise(function (resolve) {
+                    $http.get('/fencepoints').then(function (res) {
+                        resolve(convertFencepoints(res.data || []));
+                    }, function () { resolve([]); });
+                })
+            ]).then(function (results) {
+                locations = results[0].concat(results[1]);
+
+                // Centrar en el primer animal
+                var firstAnimal = results[0][0];
+                if (firstAnimal) {
+                    selectedLat  = firstAnimal.latlng[0];
+                    selectedLong = firstAnimal.latlng[1];
+                }
+
+                if (ensureMap(selectedLat, selectedLong)) {
+                    map.setView([selectedLat, selectedLong], 15);
+                    renderLocations(selectedLat, selectedLong);
+                }
+            });
+        };
 
         return googleMapService;
     });
- 
