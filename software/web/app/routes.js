@@ -104,10 +104,112 @@ module.exports = function(app) {
                 shocks: shocks
             };
 
+            // Simular datos de salud
+            var tempBase = 38.0 + Math.random() * 1.5; // 38.0 a 39.5 normal
+            if (alerts > 0 && Math.random() > 0.5) tempBase += 1.0; // posible fiebre si está asustado/fuera
+            
+            var activities = ['low', 'medium', 'high'];
+            var activity = activities[Math.floor(Math.random() * 3)];
+            var hr = 50 + Math.floor(Math.random() * 30);
+            if (activity === 'high') hr += 20;
+
+            var newHealth = {
+                animalid: animal._id,
+                temperature: parseFloat(tempBase.toFixed(1)),
+                activity_level: activity,
+                heartRate: hr,
+                sent_at: newTracking.sent_at
+            };
+
             db.addTracking(newTracking);
-            res.json({ success: true, tracking: newTracking, animalName: animal.name });
+            db.addHealthData(newHealth);
+
+            res.json({ success: true, tracking: newTracking, health: newHealth, animalName: animal.name });
         } catch(e) {
             console.error("Error en simulación:", e);
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // --- Nuevas Rutas GeoGanado ---
+    
+    // GET - Alertas activas
+    app.get('/alerts/active', function(req, res) {
+        try { res.json(db.getActiveAlerts()); }
+        catch(e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // GET - Datos de salud
+    app.get('/health/list', function(req, res) {
+        try { res.json(db.getHealthData(100)); }
+        catch(e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // POST - Agregar dato de salud (manual o sensor)
+    app.post('/health/add', function(req, res) {
+        try { res.json(db.addHealthData(req.body)); }
+        catch(e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // GET - Historial de ruta de un animal
+    app.get('/animals/:id/trail', function(req, res) {
+        try { res.json(db.getAnimalTrail(req.params.id, 50)); }
+        catch(e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // GET - Predicción IA simple de salud
+    app.get('/health/predict/:animalId', function(req, res) {
+        try {
+            var animalId = req.params.animalId;
+            var healthHistory = db.getHealthData(5, animalId);
+            
+            if (!healthHistory || healthHistory.length === 0) {
+                return res.json({ status: "unknown", message: "Sin datos suficientes", risk: 0 });
+            }
+            
+            var latest = healthHistory[0];
+            var risk = 0;
+            var issues = [];
+
+            if (latest.temperature > 39.5) {
+                risk += 60;
+                issues.push("Fiebre detectada (" + latest.temperature + "°C)");
+            } else if (latest.temperature < 37.0) {
+                risk += 40;
+                issues.push("Hipotermia leve (" + latest.temperature + "°C)");
+            }
+
+            if (latest.activity_level === 'low') {
+                risk += 20;
+                issues.push("Actividad inusualmente baja");
+            } else if (latest.activity_level === 'high' && latest.temperature > 39.0) {
+                risk += 30;
+                issues.push("Alta actividad con temperatura elevada (estrés)");
+            }
+
+            if (latest.heartRate > 90) {
+                risk += 30;
+                issues.push("Taquicardia (" + latest.heartRate + " bpm)");
+            }
+
+            var status = "healthy";
+            var message = "El animal se encuentra en buenas condiciones.";
+            if (risk >= 60) {
+                status = "critical";
+                message = "Riesgo alto: " + issues.join(", ") + ". Se requiere atención inmediata.";
+            } else if (risk >= 30) {
+                status = "warning";
+                message = "Atención requerida: " + issues.join(", ") + ". Monitorear de cerca.";
+            }
+
+            res.json({
+                animalId: animalId,
+                status: status,
+                riskScore: risk,
+                message: message,
+                latestVitals: latest
+            });
+        } catch(e) {
             res.status(500).json({ error: e.message });
         }
     });

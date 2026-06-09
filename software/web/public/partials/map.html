@@ -1,6 +1,19 @@
 <!-- Google Map -->
-<div class="left-pane" style="height: 100vh; min-height: 500px;">
+<div class="left-pane" style="height: 100vh; min-height: 500px; position: relative;">
     <div id="map" name="map" style="height: 100%; width: 100%; background-color: #cccccc;"></div>
+    
+    <!-- Animal Controls Overlay -->
+    <div style="position: absolute; top: 10px; left: 50px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); max-width: 300px; max-height: 80vh; overflow-y: auto;">
+        <h4 style="margin-top: 0; color: #0057b7;"><i class="fa fa-paw"></i> Rastreo Rápido</h4>
+        <div ng-repeat="animal in animalsList" style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+            <strong>{{animal.name}}</strong> <span class="badge" style="background:{{animal.colour}}">Potrero {{animal.paddock}}</span><br>
+            <div style="margin-top: 5px;">
+                <button class="btn btn-xs btn-primary" ng-click="findAnimalDirectly(animal._id)"><i class="fa fa-search"></i> Buscar</button>
+                <button class="btn btn-xs btn-default" ng-click="showAnimalTrail(animal._id)"><i class="fa fa-history"></i> Historial</button>
+            </div>
+        </div>
+        <button class="btn btn-xs btn-block btn-danger" ng-click="clearAnimalTrails()" style="margin-top: 10px;"><i class="fa fa-times"></i> Limpiar Rutas</button>
+    </div>
 </div>
 
 <div class="right-pane">

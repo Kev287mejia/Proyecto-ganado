@@ -24,6 +24,9 @@ angular.module('gservice', [])
 
         // Array de ubicaciones que se dibujarán en el mapa
         var locations = [];
+        
+        var animalMarkers = {}; // animalId -> layer
+        var trailLayers = [];
 
         // -------------------------------------------------------
         // Helpers internos
@@ -189,6 +192,10 @@ angular.module('gservice', [])
 
                     mapLayers.push(circle);
                     mapLayers.push(label);
+                    
+                    // Guardar referencia al marcador (usando el nombre porque la locación no tiene _id, pero lo arreglaré por nombre)
+                    // Mejor busquemos por nombre
+                    animalMarkers[loc.name] = circle;
 
                 } else {
                     // Punto de cerca
@@ -305,6 +312,73 @@ angular.module('gservice', [])
                     renderLocations(selectedLat, selectedLong);
                 }
             });
+        };
+
+        // --- Nuevas funciones GeoGanado ---
+
+        /** Buscar y centrar en un animal específico (usando su ID) */
+        googleMapService.findAnimal = function(animalId) {
+            if (!map) return;
+            
+            // Buscar en locations el animal con id/nombre que coincida
+            // locations tiene loc.name
+            $.getJSON('/animals/list', function(animals) {
+                var animal = animals.find(function(a) { return a._id === animalId; });
+                if (animal && animalMarkers[animal.name]) {
+                    var circle = animalMarkers[animal.name];
+                    var latlng = circle.getLatLng();
+                    map.flyTo(latlng, 18, { duration: 1.5 });
+                    setTimeout(function() { circle.openPopup(); }, 1500);
+                }
+            });
+        };
+
+        /** Dibujar polyline del historial de movimientos */
+        googleMapService.showTrail = function(animalId, positions) {
+            if (!map || !positions || positions.length === 0) return;
+            
+            // Asegurarnos que positions están ordenadas cronológicamente (vienen decendientes del API)
+            var sortedPos = positions.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
+            var latlngs = sortedPos.map(function(p) { return [p.location[1], p.location[0]]; });
+
+            $.getJSON('/animals/list', function(animals) {
+                var animal = animals.find(function(a) { return a._id === animalId; });
+                var color = animal ? (animal.colour || '#FF0000') : '#FF0000';
+
+                var polyline = L.polyline(latlngs, {
+                    color: color,
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '5, 10'
+                }).addTo(map);
+
+                // Dibujar flechas o puntos en cada vértice
+                var markers = [];
+                sortedPos.forEach(function(p, i) {
+                    var mk = L.circleMarker([p.location[1], p.location[0]], {
+                        radius: 3,
+                        color: color,
+                        fillColor: '#fff',
+                        fillOpacity: 1
+                    }).addTo(map);
+                    mk.bindPopup('<b>' + (animal?animal.name:'Animal') + '</b><br>' + new Date(p.sent_at).toLocaleString('es-MX'));
+                    markers.push(mk);
+                });
+
+                var trailGroup = L.layerGroup([polyline].concat(markers));
+                trailLayers.push(trailGroup);
+                
+                // Hacer zoom a la ruta
+                map.fitBounds(polyline.getBounds());
+            });
+        };
+
+        googleMapService.clearTrails = function() {
+            if (!map) return;
+            trailLayers.forEach(function(layer) {
+                map.removeLayer(layer);
+            });
+            trailLayers = [];
         };
 
         return googleMapService;

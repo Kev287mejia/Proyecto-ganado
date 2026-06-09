@@ -11,6 +11,12 @@ fenceCtrl.controller('fenceCtrl', function ($scope, $http, $rootScope, $timeout,
         longitude: -85.9175
     };
     $scope.fencePoints = [];
+    $scope.animalsList = [];
+
+    // Cargar lista de animales para el panel lateral
+    $http.get('/animals/list').then(function(res) {
+        $scope.animalsList = res.data;
+    });
 
     // -------------------------------------------------------
     // Inicializar mapa después de que Angular renderice el partial
@@ -103,4 +109,33 @@ fenceCtrl.controller('fenceCtrl', function ($scope, $http, $rootScope, $timeout,
             $scope.formData.longitude = parseFloat(gservice.clickLong).toFixed(6);
         });
     });
+
+    // --- Nuevas Funciones GeoGanado ---
+
+    $scope.findAnimalDirectly = function(animalId) {
+        $http.get('/tracking/list').then(function(res) {
+            // Refrescar mapa con los animales
+            gservice.refreshAnimals($scope.formData.latitude, $scope.formData.longitude, res.data);
+            
+            // Hacer zoom y centrar
+            setTimeout(function() {
+                gservice.findAnimal(animalId);
+            }, 500);
+        });
+    };
+
+    $scope.showAnimalTrail = function(animalId) {
+        $http.get('/animals/' + animalId + '/trail').then(function(res) {
+            if (res.data && res.data.length > 0) {
+                // Dibujar el trail en el mapa
+                gservice.showTrail(animalId, res.data);
+            } else {
+                alert("No hay historial reciente para este animal.");
+            }
+        });
+    };
+
+    $scope.clearAnimalTrails = function() {
+        gservice.clearTrails();
+    };
 });

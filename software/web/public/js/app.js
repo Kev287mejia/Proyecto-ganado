@@ -1,7 +1,7 @@
 // app.js
 
 // Declares the initial angular module "meanMapApp". Module grabs other controllers and services. Note the use of ngRoute.
-var app = angular.module('OpenFence', ['addCtrl', 'queryCtrl', 'fenceCtrl','collarCtrl', 'trackingCtrl', 'statisticsCtrl', 'settingsCtrl', 'geolocation', 'gservice', 'ngRoute'])
+var app = angular.module('OpenFence', ['addCtrl', 'queryCtrl', 'fenceCtrl','collarCtrl', 'trackingCtrl', 'statisticsCtrl', 'settingsCtrl', 'healthCtrl', 'alertsCtrl', 'geolocation', 'gservice', 'ngRoute'])
 
     // Configures Angular routing -- showing the relevant view and controller when needed.
     .config(function($routeProvider){
@@ -30,6 +30,14 @@ var app = angular.module('OpenFence', ['addCtrl', 'queryCtrl', 'fenceCtrl','coll
         }).when('/settings', {
             controller: 'settingsCtrl',
             templateUrl: 'partials/settings.html',
+            
+        }).when('/health', {
+            controller: 'healthCtrl',
+            templateUrl: 'partials/health.html',
+            
+        }).when('/alerts', {
+            controller: 'alertsCtrl',
+            templateUrl: 'partials/alerts.html',
             
             // All else forward to the Join Team Control Panel
         }).otherwise({redirectTo:'/overview'})

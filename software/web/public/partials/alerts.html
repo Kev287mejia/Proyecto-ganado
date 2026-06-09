@@ -1,0 +1,66 @@
+<div class="row" style="margin-top: 20px;">
+    <div class="col-md-12">
+        <h2 class="text-danger mb-4" style="font-weight: 700;"><i class="fa fa-bell"></i> Centro de Alertas</h2>
+        
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <ul class="nav nav-tabs border-bottom-0">
+                    <li class="active"><a data-toggle="tab" href="#all"><i class="fa fa-list"></i> Todas ({{alerts.length}})</a></li>
+                    <li><a data-toggle="tab" href="#geofence"><i class="fa fa-map-marker"></i> Geofence ({{(alerts | filter:{type:'geofence'}).length}})</a></li>
+                    <li><a data-toggle="tab" href="#health"><i class="fa fa-heartbeat"></i> Salud ({{(alerts | filter:{type:'health'}).length}})</a></li>
+                    <li><a data-toggle="tab" href="#lora"><i class="fa fa-signal"></i> Robo / Señal ({{(alerts | filter:{type:'lora_offline'}).length}})</a></li>
+                </ul>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="tab-content p-4">
+                    <!-- Tab: Todas -->
+                    <div id="all" class="tab-pane fade in active">
+                        <div class="alert alert-info" ng-if="alerts.length === 0">
+                            No hay alertas activas en este momento. El rancho está seguro.
+                        </div>
+                        <div ng-repeat="alert in alerts" class="alert alert-{{getAlertClass(alert.severity)}} mb-3 shadow-sm" style="border-radius: 8px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1"><strong>{{getAnimalName(alert.animalid)}}</strong> <small class="text-muted pull-right"><i class="fa fa-clock-o"></i> {{alert.sent_at | date:'shortTime'}}</small></h5>
+                                    <p class="mb-0"><i class="{{getIcon(alert.type)}}"></i> {{alert.message}}</p>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-default" ng-if="alert.location" ng-click="locateAnimal(alert.animalid)"><i class="fa fa-map"></i> Ver en mapa</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab: Geofence -->
+                    <div id="geofence" class="tab-pane fade">
+                        <div ng-repeat="alert in alerts | filter:{type:'geofence'}" class="alert alert-{{getAlertClass(alert.severity)}} mb-3 shadow-sm" style="border-radius: 8px;">
+                            <h5><strong>{{getAnimalName(alert.animalid)}}</strong> <small class="text-muted pull-right"><i class="fa fa-clock-o"></i> {{alert.sent_at | date:'shortTime'}}</small></h5>
+                            <p><i class="{{getIcon(alert.type)}}"></i> {{alert.message}}</p>
+                            <button class="btn btn-sm btn-default" ng-click="locateAnimal(alert.animalid)"><i class="fa fa-map"></i> Ver en mapa</button>
+                        </div>
+                        <p ng-if="(alerts | filter:{type:'geofence'}).length === 0" class="text-muted">Sin alertas de escape.</p>
+                    </div>
+
+                    <!-- Tab: Salud -->
+                    <div id="health" class="tab-pane fade">
+                        <div ng-repeat="alert in alerts | filter:{type:'health'}" class="alert alert-{{getAlertClass(alert.severity)}} mb-3 shadow-sm" style="border-radius: 8px;">
+                            <h5><strong>{{getAnimalName(alert.animalid)}}</strong> <small class="text-muted pull-right"><i class="fa fa-clock-o"></i> {{alert.sent_at | date:'shortTime'}}</small></h5>
+                            <p><i class="{{getIcon(alert.type)}}"></i> {{alert.message}}</p>
+                        </div>
+                        <p ng-if="(alerts | filter:{type:'health'}).length === 0" class="text-muted">Sin alertas de salud.</p>
+                    </div>
+
+                    <!-- Tab: LoRa / Robo -->
+                    <div id="lora" class="tab-pane fade">
+                        <div ng-repeat="alert in alerts | filter:{type:'lora_offline'}" class="alert alert-{{getAlertClass(alert.severity)}} mb-3 shadow-sm" style="border-radius: 8px;">
+                            <h5><strong>{{getAnimalName(alert.animalid)}}</strong> <small class="text-muted pull-right"><i class="fa fa-clock-o"></i> {{alert.sent_at | date:'shortTime'}}</small></h5>
+                            <p><i class="{{getIcon(alert.type)}}"></i> {{alert.message}}</p>
+                        </div>
+                        <p ng-if="(alerts | filter:{type:'lora_offline'}).length === 0" class="text-muted">Todos los collares están reportando señal correctamente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
